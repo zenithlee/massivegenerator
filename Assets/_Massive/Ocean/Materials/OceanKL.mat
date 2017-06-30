@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_Name: OceanKL
+  m_Shader: {fileID: 4800000, guid: 3a3c09bd484b023448ea7dc98f4b5bf2, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 5
+  m_EnableInstancingVariants: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Bump:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Cube:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Foam:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FoamBump:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FoamGradient:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FoamTex:
+        m_Texture: {fileID: 2800000, guid: 4e236f6d67c3d95488000d08195cce1d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Reflection:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Refraction:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SkyBox:
+        m_Texture: {fileID: 8900000, guid: 4983f3a1c11dc344cb657486ed064a8c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _FoamFactor: 1.8
+    - _FoamSize: 2
+    - _LodFadeDist: 2000
+    - _Opacity: 0.66
+    - _SampleScale: 1
+    - _Shininess: 0.078125
+    - _ShoreDistance: 4
+    - _ShoreStrength: 1.5
+    - _Size: 0.015625
+    - _SpecPower: 1
+    - _Specularity: 0.3
+    - _SunPow: 11111
+    - _Translucency: 2.5
+    - _WaterLod1Alpha: 0.95
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _FakeUnderwaterColor: {r: 0.196, g: 0.262, b: 0.196, a: 1}
+    - _ReflectColor: {r: 1, g: 1, b: 1, a: 0.5}
+    - _SeaColor: {r: 0.25200042, g: 0.33601525, b: 0.43382353, a: 0.528}
+    - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 0}
+    - _SunColor: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
+    - _SunDir: {r: 0.32139397, g: 0.9453552, b: -0.05485879, a: 0}
+    - _SurfaceColor: {r: 1, g: 1, b: 1, a: 1}
+    - _WaterColor: {r: 1, g: 1, b: 1, a: 1}

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 65672436e42d6ab45b2a0fb83fddd085
+timeCreated: 1498049923
+licenseType: Free
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - TerrainProto: {instanceID: 0}
+  - mySkin: {fileID: 11400000, guid: 97e9381c0af44564d88915b8e792cc90, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

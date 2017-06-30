@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_Name: OceanWireframePro
+  m_Shader: {fileID: 4800000, guid: bf441677c1d116a4db41bfae35e07c16, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 5
+  m_EnableInstancingVariants: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Cube:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _LodFadeDist: 2000
+    - _SampleScale: 1
+    - _Shininess: 0.464
+    m_Colors:
+    - _Color: {r: 0.5147059, g: 0.5147059, b: 0.5147059, a: 0.16078432}
+    - _ReflectColor: {r: 0.22794116, g: 0.221237, b: 0.221237, a: 0.5019608}
+    - _SpecColor: {r: 0.5441177, g: 0.22004761, b: 0.22004761, a: 0}
+    - _WireColor: {r: 0.118079565, g: 0.17508352, b: 0.28676468, a: 1}

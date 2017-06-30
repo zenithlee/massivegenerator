@@ -1,0 +1,30 @@
+ManifestFileVersion: 0
+CRC: 3249011541
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 835477225971da0c1855f31f08dc865a
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: ebb2bda959a1d8ec46cfacebf6dcccf5
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 23
+  Script: {instanceID: 0}
+- Class: 33
+  Script: {instanceID: 0}
+- Class: 43
+  Script: {instanceID: 0}
+- Class: 64
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: b1dd86887ee83234cb24702e2defafc9, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+Assets:
+- Assets/_Massive/Terrains/14/9835/9029/prefab.prefab
+Dependencies: []
