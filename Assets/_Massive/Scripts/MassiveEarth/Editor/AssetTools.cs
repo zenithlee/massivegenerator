@@ -13,9 +13,10 @@ namespace _Massive
 
     public static void WriteMeshAssets(GameObject go, string path)
     {
-      if (!File.Exists(path))
+      if (File.Exists(path))
       {
         //Directory.CreateDirectory(path);
+        File.Delete(path);
       }
 
       MeshFilter[] mfs = go.transform.GetComponentsInChildren<MeshFilter>();
@@ -29,6 +30,7 @@ namespace _Massive
         else
         {
           AssetDatabase.CreateAsset(mf.sharedMesh, path);
+          AssetDatabase.Refresh();
         }
       }
     }

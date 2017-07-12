@@ -78,8 +78,12 @@ namespace _Massive
         }
         if (type == "Polygon")
         {
-          segments = OSMTools.CreatePolygon(geometry, PositionMeters.ToVector3());
-          GenerateGeometry(segments, Container, properties, type);
+          IList segs = (IList)geometry["coordinates"];
+          foreach (IList part in segs)
+          {
+            segments = OSMTools.CreatePolygon(part, PositionMeters.ToVector3());
+            GenerateGeometry(segments, Container, properties, type);
+          }
         }
 
         //Debug.Log(segments);

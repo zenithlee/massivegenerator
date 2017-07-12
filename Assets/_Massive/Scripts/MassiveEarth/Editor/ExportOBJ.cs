@@ -54,12 +54,12 @@ namespace _Massive
 
     public static void ExportFromHeight(Texture2D t, string Path, Vector3 TileSize)
     {
-      ExportTerrainFromHeightMap(t, Path, SaveResolution.Half, SaveFormat.Quads, TileSize);
+      ExportTerrainFromHeightMap(t, Path, SaveResolution.Half, SaveFormat.Triangles, TileSize);
     }
 
     public static void ExportMapZenHeight(MassiveTile tile, Texture2D t, string Path, DVector3 TileSize, DVector3 TileLatLon)
     {
-      ExportFromMapZenHeight(tile, t, Path, SaveResolution.Half, SaveFormat.Quads, TileSize);
+      ExportFromMapZenHeight(tile, t, Path, SaveResolution.Half, SaveFormat.Triangles, TileSize);
       //ExportZenHeight(Container, t, Path, TileSize, TileLatLon);
     }
 
@@ -98,8 +98,8 @@ namespace _Massive
         for (int zz = 0; zz < hz; zz++)
         {
           Color c = HeightMap.GetPixel(xx, zz);
-          float height = TextureTools.GetAbsoluteHeightFromColor(c);
-          _heightData[xx, zz] = height;  //height values are reversed in unity terrain
+          double height = TextureTools.GetAbsoluteHeightFromColor(c);
+          _heightData[xx, zz] = (float)height;  //height values are reversed in unity terrain
         }
       } 
 
@@ -170,6 +170,7 @@ namespace _Massive
       Container.transform.localScale = TileSize.ToVector3() + new Vector3(0, 1, 0);
     }
 
+    //NOTE: expects a continuity Heightmap, not a regular heightmap. The cont. map contains edge pixels from adjacent maps.
     static void ExportFromMapZenHeight(MassiveTile tile, Texture2D HeightMap, string fileName, SaveResolution saveResolution, SaveFormat saveFormat, DVector3 TileSize)
     {
 
@@ -178,8 +179,8 @@ namespace _Massive
       //td.baseMapResolution = 256;
       //td.heightmapResolution = 256;
 
-      int w = HeightMap.width+1  ;
-      int h = HeightMap.height+1 ;
+      int w = HeightMap.width  ;
+      int h = HeightMap.height ;
       
 
       DVector3 size = new DVector3(TileSize.x, 1, TileSize.z);
@@ -190,10 +191,10 @@ namespace _Massive
         for (int zz = 0; zz < w; zz++)
         {
 
-          //repeat the edge pixels. Stitcher will join adjacent tiles when more tiles are loaded
-          int xxx = xx < h-1 ? xx : xx-1;
-          int zzz = zz < w-1 ? zz : zz - 1;
-          Color c = HeightMap.GetPixel(xxx, zzz);
+          ////repeat the edge pixels. Stitcher will join adjacent tiles when more tiles are loaded
+         // int xxx = xx < h-1 ? xx : xx-1;
+          //int zzz = zz < w-1 ? zz : zz - 1;
+          Color c = HeightMap.GetPixel(xx, zz);
           //double height = BitmapUtils.MassivePixelToDouble(c) - EditorGlobals.HeightOffset;
           double height = TextureTools.GetAbsoluteHeightFromColor(c);
           //if (height < EditorGlobals.HeightOffset) height = -20;

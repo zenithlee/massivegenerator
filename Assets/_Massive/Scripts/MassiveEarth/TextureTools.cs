@@ -294,9 +294,9 @@ namespace _Massive
     }
 
     //mapbox
-    public static float GetAbsoluteHeightFromColor(Color color)
+    public static double GetAbsoluteHeightFromColor(Color color)
     {
-      return (float)(-10000 + ((color.r * 255 * 256 * 256 + color.g * 255 * 256 + color.b * 255) * 0.1));
+      return (double)(-10000 + ((color.r * 255.0 * 256.0 * 256.0 + color.g * 255.0 * 256.0 + color.b * 255.0) * 0.1));
     }
     //mapbox
     public static float GetAbsoluteHeightFromColor32(Color32 color)

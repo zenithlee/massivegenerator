@@ -40,12 +40,12 @@ namespace _Massive
       TileIndex = DVector3.FromVector3(pos);
       //DRect r = MapFuncs.TileBoundsInMeters(new DVector3(pos.x, 0, pos.z), Zoom);
       //DVector3 c = MapFuncs.TileIdToCenterLatitudeLongitude((int)pos.x, (int)pos.z, Zoom);
-      DRect latlonbounds = MapFuncs.TileIdToBounds((int)pos.x, (int)pos.z, Zoom);
+      DRect latlonbounds = MapTools.TileIdToBounds((int)pos.x, (int)pos.z, Zoom);
       DVector3 c = latlonbounds.Max;
-      PositionMeters = MapFuncs.LatLonToMeters(c.x, c.z);
+      PositionMeters = MapTools.LatLonToMeters(c.x, c.z);
 
-      TileBoundsMeters = new DRect(MapFuncs.LatLonToMeters(latlonbounds.Min.x, latlonbounds.Min.z),
-        MapFuncs.LatLonToMeters(latlonbounds.Max.x, latlonbounds.Max.z));
+      TileBoundsMeters = new DRect(MapTools.LatLonToMeters(latlonbounds.Min.x, latlonbounds.Min.z),
+        MapTools.LatLonToMeters(latlonbounds.Max.x, latlonbounds.Max.z));
       Info = TileBoundsMeters.ToString();
     }
     

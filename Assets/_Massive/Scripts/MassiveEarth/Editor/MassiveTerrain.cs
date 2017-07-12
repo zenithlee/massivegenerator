@@ -9,18 +9,8 @@ namespace _Massive
 {
   public class MassiveTerrain : EditorWindow
   {
-
-    public enum ePATHSPEC
-    {
-      TEMPFILES, TERRAINBASE, TERRAINPATH, TERRAINFULLNAME, IMAGEEXPORT,
-      BASEMAPURL, HEIGHTURL, SKINPATH, SATTELITEMAPURL, MAPZENURL, NORMALMAPURL,
-      TEXTUREPATH, NORMALMAPPATH, HEIGHTMAPATH, MATERIALPATH, MESHPATH, PREFABPATH, ROADSPATH, WATERPATH, BUILDINGSPATH,
-      ROADSASSETPATH, WATERASSETPATH, BUILDINGSASSETPATH
-    };
-    public const string TERRAINBASE = "Assets/_Massive/Terrains";
-
     [SerializeField]
-    int ZoomLevel = 11;
+    int ZoomLevel = 14;
     [SerializeField]
     int TileX = 1098;
     [SerializeField]
@@ -32,11 +22,14 @@ namespace _Massive
     int RangeXE = 1099;
     int RangeZE = 515;
 
+    [SerializeField]
     DVector3 StartPostion = new DVector3(1097, 0, 514);
 
     const int cellsize = 256;
     bool Stop = false;
     int Done = 0;
+    int NeighbourDone = 0;
+    int HeightmapDone = 0;
     int TileDone = 0;
     private string ExportLocation = @"I:\root\dev\UnityProjects\_Unity5\AssetBundles\Terrains\";
 
@@ -46,18 +39,31 @@ namespace _Massive
     public GUISkin mySkin;
     float progress = 0;
 
+    [SerializeField]
     bool bCreateGrass = false;
+    [SerializeField]
+    bool bExport = false;
 
     [SerializeField]
     Material RoadMaterial;
     [SerializeField]
     Material SmallStreetMaterial;
     [SerializeField]
+    Material MajorRoadMaterial;
+    [SerializeField]
+    Material PathMaterial;
+    [SerializeField]
+    Material ServiceRoadMaterial;
+    [SerializeField]
+    Material RailwayMaterial;
+    [SerializeField]
     Material WaterMaterial;
     [SerializeField]
     Material BuildingMaterial;
+    [SerializeField]
+    Material RoofMaterial;
 
-    List<Vector3> Ranges = new List<Vector3>();
+    //List<Vector3> Ranges = new List<Vector3>();
 
     private void OnEnable()
     {
@@ -71,6 +77,12 @@ namespace _Massive
       EditorWindow.GetWindow(typeof(MassiveTerrain));
     }
 
+    void Setup()
+    {
+      Paths.TileX = TileX;
+      Paths.TileZ = TileZ;
+      Paths.ZoomLevel = ZoomLevel;
+    }
     #region GUI
     void OnGUI()
     {
@@ -117,12 +129,12 @@ namespace _Massive
 
       GUILayout.Label("Creation", EditorStyles.boldLabel);
 
-
       GUILayout.BeginHorizontal();
       if (GUILayout.Button("Auto Generate 1 Tile") == true)
       {
         EditorCoroutine.StartCoroutine(GenerateAll());
       }
+      bExport = EditorGUILayout.Toggle("Export Bundle", bExport);
       GUILayout.EndHorizontal();
 
       GUILayout.Label("Range", EditorStyles.boldLabel);
@@ -134,12 +146,15 @@ namespace _Massive
         EditorCoroutine.StartCoroutine(GenerateRange());
       }
       GUILayout.EndHorizontal();
+      if (GUILayout.Button("Download Neighbouring Heightmaps") == true)
+      {
+        DownloadHeightmapNeighbours();
+      }
       GUILayout.Label((TileX - RangeSize) + "," + (TileZ - RangeSize) + "-" + (TileZ + RangeSize) + "," + (TileZ + RangeSize), EditorStyles.boldLabel);
 
       GUILayout.BeginHorizontal();
       bCreateGrass = EditorGUILayout.Toggle("Create Grass", bCreateGrass);
       GUILayout.EndHorizontal();
-
 
       GUILayout.Label("Components", EditorStyles.boldLabel);
       GUILayout.Label("Download", EditorStyles.boldLabel);
@@ -155,13 +170,20 @@ namespace _Massive
       {
         DownloadHeightMap();
       }
+
       if (GUILayout.Button("NormalMap") == true)
       {
         DownloadNormalMap();
       }
       GUILayout.EndHorizontal();
 
+      GUILayout.BeginHorizontal();
+      if (GUILayout.Button("Create Continuity") == true)
+      {
+        CreateContiuousTiles();
+      }
 
+      GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       if (GUILayout.Button("Generate Mesh Terrain") == true)
@@ -171,6 +193,11 @@ namespace _Massive
       GUILayout.EndHorizontal();
 
       GUILayout.Label("Generate", EditorStyles.boldLabel);
+
+      if ( GUILayout.Button("Get OSM Tile") == true )
+      {
+        DownloadOSM();
+      }
 
       GUILayout.BeginHorizontal();
       if (GUILayout.Button("Roads") == true)
@@ -183,10 +210,31 @@ namespace _Massive
       }
       if (GUILayout.Button("Buildings") == true)
       {
-        DownloadBuildings();        
+        DownloadBuildings();
       }
       GUILayout.EndHorizontal();
-      
+
+      GUILayout.BeginHorizontal();
+      if (GUILayout.Button("Road Network") == true)
+      {
+        GenerateRoadNetwork();
+      }
+      if (GUILayout.Button("Road Network Test") == true)
+      {
+        GenerateRoadNetworkTest();
+      }
+      if (GUILayout.Button("Polygon Test") == true)
+      {
+        PolygonTest();
+      }
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      if (GUILayout.Button("Get Geo Info") == true)
+      {
+        GetGeoInfo();
+      }
+      GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       if (GUILayout.Button("Fix Terrain Mesh") == true)
@@ -212,11 +260,15 @@ namespace _Massive
       GUILayout.Label("Bundle Export Location");
       ExportLocation = GUILayout.TextField(ExportLocation);
 
-
+      MajorRoadMaterial = EditorGUILayout.ObjectField("Major Road Material", MajorRoadMaterial, typeof(Material)) as Material;
       RoadMaterial = EditorGUILayout.ObjectField("Road Material", RoadMaterial, typeof(Material)) as Material;
       SmallStreetMaterial = EditorGUILayout.ObjectField("Small Road Material", SmallStreetMaterial, typeof(Material)) as Material;
+      PathMaterial = EditorGUILayout.ObjectField("Path Material", PathMaterial, typeof(Material)) as Material;
+      RailwayMaterial = EditorGUILayout.ObjectField("Railway Material", RailwayMaterial, typeof(Material)) as Material;
       WaterMaterial = EditorGUILayout.ObjectField("Water Material", WaterMaterial, typeof(Material)) as Material;
-      BuildingMaterial = EditorGUILayout.ObjectField("BuildingMaterial", BuildingMaterial, typeof(Material)) as Material;
+      BuildingMaterial = EditorGUILayout.ObjectField("Building Material", BuildingMaterial, typeof(Material)) as Material;
+      RoofMaterial = EditorGUILayout.ObjectField("Roof Material", RoofMaterial, typeof(Material)) as Material;
+      ServiceRoadMaterial = EditorGUILayout.ObjectField("Service Road Material", ServiceRoadMaterial, typeof(Material)) as Material;
 
       if (GUILayout.Button("STOP"))
       {
@@ -237,104 +289,139 @@ namespace _Massive
       StartPostion = new DVector3(TileX, 0, TileZ);
     }
 
-    public string GetPath(ePATHSPEC ps)
+    void DownloadOSM()
     {
-      switch (ps)
+      Done++;
+      EditorCoroutine.StartCoroutine(DownloadOSMCo());
+    }
+
+    IEnumerator DownloadOSMCo()
+    {
+      CreateFolders();
+
+      string url = Paths.GetPath(ePATHSPEC.OSMURL);
+      //DRect r = MapTools.TileLatLonBounds(new DVector3(TileX, 0, TileZ), ZoomLevel);
+      DRect r = MapTools.TileIdToBounds(TileX, TileZ, ZoomLevel);
+      url = url.Replace("{x2}", r.Min.z.ToString());
+      url = url.Replace("{y2}", r.Min.x.ToString());
+      url = url.Replace("{x1}", r.Max.z.ToString());
+      url = url.Replace("{y1}", r.Max.x.ToString());
+
+      WWW www = new WWW(url);
+      progress = 0;
+      Debug.Log(url);
+      while (!www.isDone)
       {
-        case ePATHSPEC.TERRAINBASE:
-          return TERRAINBASE + "/" + ZoomLevel;
-        case ePATHSPEC.TERRAINPATH:
-          return TERRAINBASE + "/" + ZoomLevel + "/" + TileZ + "/" + TileX;
-        case ePATHSPEC.TERRAINFULLNAME:
-          return TERRAINBASE + "/" + ZoomLevel + "/" + TileZ + "/" + TileX + "/" + TileX + "_" + TileZ;
-        case ePATHSPEC.BASEMAPURL:
-          return "http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial";
-        case ePATHSPEC.SATTELITEMAPURL:
-          //a300231032023001
-          //return "https://tile.mapzen.com/mapzen/terrain/v1/terrarium/{zoom}/{x}/{z}.png?api_key={mapzenkey}";
-          return "https://api.mapbox.com:443/v4/mapbox.satellite/{zoom}/{x}/{z}@2x.png?access_token={mapboxkey}";
-        //  return "https://t1.ssl.ak.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=5772&n=z&c4w=1";
-        case ePATHSPEC.HEIGHTURL:
-          return "https://api.mapbox.com/v4/mapbox.terrain-rgb/{zoom}/{x}/{z}.pngraw?access_token={mapboxkey}";
-        //return "https://tile.mapzen.com/mapzen/terrain/v1/terrarium/{zoom}/{x}/{z}.png?api_key={mapzenkey}";
-        //return "http://dev.virtualearth.net/REST/v1/Elevation/Bounds?bounds=";
-        case ePATHSPEC.NORMALMAPURL:
-          return "https://tile.mapzen.com/mapzen/terrain/v1/normal/{zoom}/{x}/{z}.png?api_key={mapzenkey}";
-        case ePATHSPEC.MAPZENURL:
-          return "https://tile.mapzen.com/mapzen/vector/v1/";
-        case ePATHSPEC.TEXTUREPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/texture.png";
-        case ePATHSPEC.NORMALMAPPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/normals.png";
-        case ePATHSPEC.HEIGHTMAPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/height.png";
-        case ePATHSPEC.MESHPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/mesh.obj";
-        case ePATHSPEC.MATERIALPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/material.mat";
-        case ePATHSPEC.PREFABPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/prefab.prefab";
-        case ePATHSPEC.ROADSPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/roads.json";
-        case ePATHSPEC.WATERPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/water.json";
-        case ePATHSPEC.BUILDINGSPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/buildings.json";
-        case ePATHSPEC.ROADSASSETPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/roads.asset";
-        case ePATHSPEC.WATERASSETPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/water.asset";
-        case ePATHSPEC.BUILDINGSASSETPATH:
-          return GetPath(ePATHSPEC.TERRAINPATH) + "/buildings.asset";
-        default:
-          return "Assets/_Massive";
+        //progress = www.progress;
+        progress++;
+        this.Repaint();
+        yield return new WaitForSeconds(0.01f);
       }
+      progress = 0;
+      File.WriteAllText(Paths.GetPath(ePATHSPEC.OSMPath), www.text);
+      AssetDatabase.Refresh();
+      Done--;
     }
 
     void DownloadBuildings()
     {
       Done++;
       CreateFolders();
-      EditorCoroutine.StartCoroutine(DownloadFeaturesCo("buildings", GetPath(ePATHSPEC.BUILDINGSPATH), GenerateBuildings));
+      EditorCoroutine.StartCoroutine(DownloadFeaturesCo("buildings", Paths.GetPath(ePATHSPEC.BUILDINGSPATH), GenerateBuildings));
     }
 
     void GenerateBuildings()
     {
-      MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();      
-      string data = File.ReadAllText(GetPath(ePATHSPEC.BUILDINGSPATH));
+      MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();
+      string data = File.ReadAllText(Paths.GetPath(ePATHSPEC.BUILDINGSPATH));
       //t.GenerateRoadsJSON(data);
+      Transform o = TerrainContainer.transform.Find("buildings");
+      if (o != null) GameObject.DestroyImmediate(o.gameObject);
       GameObject go = new GameObject("buildings");
       MassiveBuilding b = go.AddComponent<MassiveBuilding>();
-      b.SetMaterial(BuildingMaterial);
-      go.transform.parent = TerrainContainer.transform;
+      b.SetMaterial(BuildingMaterial, RoofMaterial);
+      go.transform.parent = TerrainContainer.transform; 
       go.transform.localPosition = Vector3.zero;
-      b.Generate(data, go, t.PositionMeters, GetPath(ePATHSPEC.BUILDINGSASSETPATH));
-      DestroyImmediate(b);
+      b.Generate(data, go, t.PositionMeters);
+      //DestroyImmediate(b);
 
-      AssetTools.WriteMeshAssets(go, GetPath(ePATHSPEC.ROADSASSETPATH));
+      AssetTools.WriteMeshAssets(go, Paths.GetPath(ePATHSPEC.BUILDINGSASSETPATH));
     }
 
     void DownloadRoads()
     {
       Done++;
       CreateFolders();
-      EditorCoroutine.StartCoroutine(DownloadFeaturesCo("roads", GetPath(ePATHSPEC.ROADSPATH), GenerateRoads));
+      EditorCoroutine.StartCoroutine(DownloadFeaturesCo("roads", Paths.GetPath(ePATHSPEC.ROADSPATH), GenerateRoads));
     }
 
     void GenerateRoads()
-    {      
-      MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();      
-      string data = File.ReadAllText(GetPath(ePATHSPEC.ROADSPATH));
+    {
+      MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();
+      string data = File.ReadAllText(Paths.GetPath(ePATHSPEC.ROADSPATH));
       //t.GenerateRoadsJSON(data);
       GameObject go = new GameObject("roads");
       MassiveRoad r = go.AddComponent<MassiveRoad>();
-      r.SetMaterial(RoadMaterial);
+      r.SetMaterial(MajorRoadMaterial, RoadMaterial, PathMaterial, RailwayMaterial);
       go.transform.parent = TerrainContainer.transform;
       go.transform.localPosition = Vector3.zero;
-      r.Generate(data, t.PositionMeters, GetPath(ePATHSPEC.ROADSASSETPATH));
+      r.Generate(data, t.PositionMeters, Paths.GetPath(ePATHSPEC.ROADSASSETPATH));
       DestroyImmediate(r);
 
-      AssetTools.WriteMeshAssets(go, GetPath(ePATHSPEC.ROADSASSETPATH));
+      AssetTools.WriteMeshAssets(go, Paths.GetPath(ePATHSPEC.ROADSASSETPATH));
+    }
+
+    void GenerateRoadNetwork()
+    {
+      CreateFolders();
+
+      MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();
+      string data = File.ReadAllText(Paths.GetPath(ePATHSPEC.ROADSPATH));
+      Transform rn = TerrainContainer.transform.Find("roadnetwork");
+      if (rn != null)
+      {
+        GameObject.DestroyImmediate(rn.gameObject);
+      }
+      GameObject go = new GameObject("roadnetwork");
+      go.transform.parent = TerrainContainer.transform;
+      go.transform.localPosition = Vector3.zero;
+      go.layer = LayerMask.NameToLayer("Roads");
+      MassiveRoadNetwork mr = go.AddComponent<MassiveRoadNetwork>();
+      
+      mr.SetMaterials(RoadMaterial, RailwayMaterial, PathMaterial, ServiceRoadMaterial);
+      mr.CreateRoads(data, t.PositionMeters);
+      AssetTools.WriteMeshAssets(go, Paths.GetPath(ePATHSPEC.ROADSASSETPATH));
+      //mr.CreateTest();
+    }
+
+    void GenerateRoadNetworkTest()
+    {
+      CreateFolders();
+
+      MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();
+      string data = File.ReadAllText(Paths.GetPath(ePATHSPEC.ROADSPATH));
+      Transform rn = TerrainContainer.transform.Find("roadnetwork");
+      if (rn != null)
+      {
+        GameObject.DestroyImmediate(rn.gameObject);
+      }
+      GameObject go = new GameObject("roadnetwork");
+      go.transform.parent = TerrainContainer.transform;
+      go.transform.localPosition = Vector3.zero;
+      go.layer = LayerMask.NameToLayer("Roads");
+      MassiveRoadNetwork mr = go.AddComponent<MassiveRoadNetwork>();
+      mr.SetMaterials(RoadMaterial, RailwayMaterial, PathMaterial, ServiceRoadMaterial);
+      mr.CreateTest();
+    }
+
+    void PolygonTest()
+    {
+      GameObject go = GameObject.Find("polytest");
+      GameObject.DestroyImmediate(go);
+      
+        go = new GameObject("polytest");
+        go.AddComponent<PolyTest>().Test();
+
       
     }
 
@@ -342,18 +429,19 @@ namespace _Massive
     {
       Done++;
       CreateFolders();
-      EditorCoroutine.StartCoroutine(DownloadFeaturesCo("water", GetPath(ePATHSPEC.WATERPATH), GenerateWater));
+      EditorCoroutine.StartCoroutine(DownloadFeaturesCo("water", Paths.GetPath(ePATHSPEC.WATERPATH), GenerateWater));
     }
 
     void GenerateWater()
     {
       MassiveTile t = TerrainContainer.GetComponent<MassiveTile>();
       t.WaterMaterial = this.WaterMaterial;
-      
-      if ( File.Exists( GetPath(ePATHSPEC.WATERPATH))) { 
-        string data = File.ReadAllText(GetPath(ePATHSPEC.WATERPATH));
+
+      if (File.Exists(Paths.GetPath(ePATHSPEC.WATERPATH)))
+      {
+        string data = File.ReadAllText(Paths.GetPath(ePATHSPEC.WATERPATH));
         GameObject go = new GameObject();
-        go.transform.parent = t.transform;        
+        go.transform.parent = t.transform;
         go.name = "water";
         MassiveWater w = go.AddComponent<MassiveWater>();
         w.OceanMaterial = WaterMaterial;
@@ -364,29 +452,32 @@ namespace _Massive
         go.transform.localPosition = Vector3.zero;
         DestroyImmediate(w);
 
-        AssetTools.WriteMeshAssets(go, GetPath(ePATHSPEC.WATERASSETPATH));
-      }      
+        AssetTools.WriteMeshAssets(go, Paths.GetPath(ePATHSPEC.WATERASSETPATH));
+      }
     }
 
     IEnumerator DownloadFeaturesCo(string feature, string outpath, Action next = null)
     {
       string MKey = KeyProvider.GetMapZenKey();
-      string FullURL = GetPath(ePATHSPEC.MAPZENURL);
+      string FullURL = Paths.GetPath(ePATHSPEC.MAPZENURL);
       var tileurl = TileX + "/" + TileZ;
-      var baseUrl = GetPath(ePATHSPEC.MAPZENURL);
+      var baseUrl = Paths.GetPath(ePATHSPEC.MAPZENURL);
       var url = baseUrl + feature + "/" + ZoomLevel + "/";
       FullURL = url + tileurl + ".json?api_key=" + MKey;
-      Debug.Log(FullURL);
+
       string data = "";
 
       progress = 0;
       if (File.Exists(outpath))
       {
+        Debug.Log("Cache Hit: " + outpath);
         data = File.ReadAllText(outpath);
       }
       else
       {
+        Debug.Log(FullURL);
         WWW www = new WWW(FullURL);
+
         while (!www.isDone)
         {
           progress = www.progress;
@@ -413,12 +504,78 @@ namespace _Massive
       {
         next();
       }
+    }
 
+    //TODO get wiki info http://api.geonames.org/findNearbyWikipedia?lat=47&lng=9&username=demo 
+    void GetGeoInfo()
+    {
+      Done++;
+      EditorCoroutine.StartCoroutine(GetGeoInfoCo());
+    }
+
+    IEnumerator GetGeoInfoCo()
+    {
+      CreateFolders();
+      string FullURL = Paths.GetPath(ePATHSPEC.GEOINFOURL);      
+      DRect worldpos = MapTools.TileIdToBounds(TileX, TileZ, ZoomLevel);
+      FullURL = FullURL.Replace("{e}", worldpos.Min.z.ToString());
+      FullURL = FullURL.Replace("{n}", worldpos.Min.x.ToString());
+
+      FullURL = FullURL.Replace("{w}", worldpos.Max.z.ToString());
+      FullURL = FullURL.Replace("{s}", worldpos.Max.x.ToString());
+      string outpath = Paths.GetPath(ePATHSPEC.GEOINFOPATH);
+
+      string data = "";
+      if (File.Exists(outpath))
+      {
+        Debug.Log("Cache Hit: " + outpath);
+        data = File.ReadAllText(outpath);
+      }
+      else
+      {
+        Debug.Log(FullURL);
+        WWW www = new WWW(FullURL);
+
+        while (!www.isDone)
+        {
+          progress = www.progress;
+          this.Repaint();
+          yield return new WaitForSeconds(0.01f);
+        }
+        progress = 1;
+        this.Repaint();
+
+        if (string.IsNullOrEmpty(www.error))
+        {
+          data = www.text;
+          File.WriteAllText(outpath, data);
+          AssetDatabase.Refresh();
+        }
+        else
+        {
+          Debug.LogError(www.error);
+        }
+      }
+      Done--;
+    }
+
+    void CreateContiuousTiles()
+    {
+      CreateFolders();
+      if (File.Exists(Paths.GetPath(ePATHSPEC.HEIGHTMAPCONTPATH)))
+      {
+        Debug.Log("Cache hit: Continuity map found for : " + Paths.GetPath(ePATHSPEC.HEIGHTMAPCONTPATH));
+        return;
+      }
+
+      TerrainFix fix = new TerrainFix();
+      fix.CreateHeightmapContinuity(TileX, TileZ);
     }
 
     void FixMesh()
     {
       Done++;
+
       TerrainFix fix = new TerrainFix();
       fix.Fix(TerrainContainer);
       Done--;
@@ -431,35 +588,34 @@ namespace _Massive
       EditorCoroutine.StartCoroutine(DownloadBasemapCo());
     }
 
-
     IEnumerator DownloadBasemapCo()
     {
-
       Debug.Log("Downloading Base Map");
+
       int pixx = 0;
       int pixy = 0;
 
-      int Chop = 0; 
+      //int Chop = 0;
 
-      string FullURL = GetPath(ePATHSPEC.SATTELITEMAPURL);
-      
+      string FullURL = Paths.GetPath(ePATHSPEC.SATTELITEMAPURL);
+
       FullURL = FullURL.Replace("{mapboxkey}", KeyProvider.GetMapBoxKey());
       FullURL = FullURL.Replace("{x}", TileX.ToString());
       FullURL = FullURL.Replace("{z}", TileZ.ToString());
       FullURL = FullURL.Replace("{zoom}", ZoomLevel.ToString());
 
-      
       Texture2D Temp;
 
-      if ( File.Exists(GetPath(ePATHSPEC.TEXTUREPATH) ))
+      if (File.Exists(Paths.GetPath(ePATHSPEC.TEXTUREPATH)))
       {
-        Debug.Log("Cache hit:" + GetPath(ePATHSPEC.TEXTUREPATH));
+        Debug.Log("Cache hit:" + Paths.GetPath(ePATHSPEC.TEXTUREPATH));
         //Temp = AssetDatabase.LoadAssetAtPath<Texture2D>(GetPath(ePATHSPEC.TEXTUREPATH));
       }
       else
       {
         Debug.Log(FullURL);
         Temp = new Texture2D((int)(cellsize), (int)(cellsize));
+
         WWW wwwTex = new WWW(FullURL);
         yield return wwwTex;
 
@@ -471,18 +627,88 @@ namespace _Massive
           yield break;
         }
         wwwTex.LoadImageIntoTexture(Temp);
-        File.WriteAllBytes(GetPath(ePATHSPEC.TERRAINPATH) + "/texture.png", Temp.EncodeToPNG());
+        File.WriteAllBytes(Paths.GetPath(ePATHSPEC.TERRAINPATH) + "/texture.png", Temp.EncodeToPNG());
         DestroyImmediate(Temp);
         AssetDatabase.Refresh();
         Debug.Log("Downloaded Base Map");
-      }    
-      
+      }
+
       Done--;
+    }
+
+    void DownloadHeightmapNeighbours()
+    {
+      NeighbourDone = 1;
+      CreateFolders();
+      Done = 1;
+      HeightmapDone = 1;
+      EditorCoroutine.StartCoroutine(DownloadHeightMapNeighboursCo());
+    }
+
+    IEnumerator DownloadHeightMapNeighboursCo()
+    {
+      HeightmapDone = 1;
+
+      int itx = TileX;
+      int itz = TileZ;
+
+      Setup();
+      HeightmapDone = 1;
+      Debug.Log("Getting Root Heightmap " + TileX + "," + TileZ);
+      EditorCoroutine.StartCoroutine(DownloadHeightMapCo());
+      while (HeightmapDone > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+
+      TileX = itx + 1;
+      Setup();
+      HeightmapDone = 1;
+      Debug.Log("Getting Heightmap Neighbour " + TileX + "," + TileZ);
+      EditorCoroutine.StartCoroutine(DownloadHeightMapCo());
+      while (HeightmapDone > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+      Debug.Log("Done " + TileX + "," + TileZ);
+
+      TileX = itx + 1;
+      TileZ = itz + 1;
+      Setup();
+      Debug.Log("Getting Heighmap Neighbour " + TileX + "," + TileZ);
+      HeightmapDone = 1;
+      EditorCoroutine.StartCoroutine(DownloadHeightMapCo());
+      while (HeightmapDone > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+      Debug.Log("Done " + TileX + "," + TileZ);
+
+      TileX = itx;
+      TileZ = itz + 1;
+      Setup();
+      Debug.Log("Getting Heightmap Neighbour " + TileX + "," + TileZ);
+      HeightmapDone = 1;
+      EditorCoroutine.StartCoroutine(DownloadHeightMapCo());
+      while (HeightmapDone > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+      Debug.Log("Done heightmap " + TileX + "," + TileZ);
+
+      TileX = itx;
+      TileZ = itz;
+      Setup();
+      NeighbourDone = 0;
     }
 
     void DownloadHeightMap()
     {
-      Done++;
+      HeightmapDone++;
       CreateFolders();
       EditorCoroutine.StartCoroutine(DownloadHeightMapCo());
     }
@@ -491,27 +717,28 @@ namespace _Massive
     {
       Debug.Log("Downloading Height Map");
 
-      if (File.Exists(GetPath(ePATHSPEC.HEIGHTMAPATH)))
+      if (File.Exists(Paths.GetPath(ePATHSPEC.HEIGHTMAPATH)))
       {
-        Debug.Log("Cache hit:" + GetPath(ePATHSPEC.HEIGHTMAPATH));
+        Debug.Log("Cache hit:" + Paths.GetPath(ePATHSPEC.HEIGHTMAPATH));
         //Temp = AssetDatabase.LoadAssetAtPath<Texture2D>(GetPath(ePATHSPEC.TEXTUREPATH));
+        yield return new WaitForSeconds(0.1f);
       }
       else
       {
-        string FullURL = GetPath(ePATHSPEC.HEIGHTURL);
+        string FullURL = Paths.GetPath(ePATHSPEC.HEIGHTURL);
 
         FullURL = FullURL.Replace("{mapboxkey}", KeyProvider.GetMapBoxKey());
         FullURL = FullURL.Replace("{x}", TileX.ToString());
         FullURL = FullURL.Replace("{z}", TileZ.ToString());
         FullURL = FullURL.Replace("{zoom}", ZoomLevel.ToString());
         WWW wwwTex = new WWW(FullURL);
+
         while (!wwwTex.isDone)
         {
           progress = wwwTex.progress;
           Repaint();
           yield return new WaitForSeconds(0.1f);
         }
-
 
         if (!string.IsNullOrEmpty(wwwTex.error))
         {
@@ -524,15 +751,15 @@ namespace _Massive
         //Color[] pixels = new Color[Temp.width * Temp.height];
         //pixels = Temp.GetPixels(0, 0, Temp.width, Temp.height);
 
-        string path = GetPath(ePATHSPEC.HEIGHTMAPATH);
+        string path = Paths.GetPath(ePATHSPEC.HEIGHTMAPATH);
         File.WriteAllBytes(path, Temp.EncodeToPNG());
 
-        AssetDatabase.Refresh();
+        //AssetDatabase.Refresh();
         SwapImageForAsset(Temp, path);
         Debug.Log("Downloaded Height Map");
       }
-      
-      Done--;
+
+      HeightmapDone--;
     }
 
     void DownloadNormalMap()
@@ -544,17 +771,16 @@ namespace _Massive
 
     IEnumerator DownloadNormalMapCo()
     {
-
       Debug.Log("Downloading Normap Map");
 
-      if (File.Exists(GetPath(ePATHSPEC.NORMALMAPPATH)))
+      if (File.Exists(Paths.GetPath(ePATHSPEC.NORMALMAPPATH)))
       {
-        Debug.Log("Cache hit:" + GetPath(ePATHSPEC.NORMALMAPPATH));
+        Debug.Log("Cache hit:" + Paths.GetPath(ePATHSPEC.NORMALMAPPATH));
         //Temp = AssetDatabase.LoadAssetAtPath<Texture2D>(GetPath(ePATHSPEC.TEXTUREPATH));
       }
       else
       {
-        string FullURL = GetPath(ePATHSPEC.NORMALMAPURL);
+        string FullURL = Paths.GetPath(ePATHSPEC.NORMALMAPURL);
 
         FullURL = FullURL.Replace("{mapzenkey}", KeyProvider.GetMapZenKey());
         FullURL = FullURL.Replace("{x}", TileX.ToString());
@@ -574,7 +800,7 @@ namespace _Massive
         Texture2D Temp = new Texture2D((int)(cellsize), (int)(cellsize));
         wwwTex.LoadImageIntoTexture(Temp);
 
-        string path = GetPath(ePATHSPEC.NORMALMAPPATH);
+        string path = Paths.GetPath(ePATHSPEC.NORMALMAPPATH);
         File.WriteAllBytes(path, Temp.EncodeToPNG());
         DestroyImmediate(Temp);
         AssetDatabase.Refresh();
@@ -589,20 +815,43 @@ namespace _Massive
         AssetDatabase.Refresh();
         Debug.Log("Downloaded Normap Map");
       }
-           
+
       Done--;
     }
 
     void CreateFolders()
     {
-      if (!Directory.Exists(TERRAINBASE))
+      Setup();
+      if (!Directory.Exists(Paths.TERRAINBASE))
       {
-        Directory.CreateDirectory(TERRAINBASE);
+        Directory.CreateDirectory(Paths.TERRAINBASE);
       }
-      if (!Directory.Exists(GetPath(ePATHSPEC.TERRAINPATH)))
+      if (!Directory.Exists(Paths.GetPath(ePATHSPEC.TERRAINPATH)))
       {
-        Directory.CreateDirectory(GetPath(ePATHSPEC.TERRAINPATH));
+        Directory.CreateDirectory(Paths.GetPath(ePATHSPEC.TERRAINPATH));
       }
+
+      TileX++;
+      Setup();
+      if (!Directory.Exists(Paths.GetPath(ePATHSPEC.TERRAINPATH)))
+      {
+        Directory.CreateDirectory(Paths.GetPath(ePATHSPEC.TERRAINPATH));
+      }
+      TileZ++;
+      Setup();
+      if (!Directory.Exists(Paths.GetPath(ePATHSPEC.TERRAINPATH)))
+      {
+        Directory.CreateDirectory(Paths.GetPath(ePATHSPEC.TERRAINPATH));
+      }
+
+      TileX--;
+      Setup();
+      if (!Directory.Exists(Paths.GetPath(ePATHSPEC.TERRAINPATH)))
+      {
+        Directory.CreateDirectory(Paths.GetPath(ePATHSPEC.TERRAINPATH));
+      }
+      TileZ--;
+      Setup();
     }
 
     void GetContainers()
@@ -613,39 +862,67 @@ namespace _Massive
 
     IEnumerator GenerateRange()
     {
-
       int itx = TileX;
-
-      for ( int xx= TileX-RangeSize; xx < TileX + RangeSize; xx++)
+      int itz = TileZ;
+      //bExport = false;
+      for (int xx = itx - RangeSize; xx <= itx + RangeSize; xx++)
       {
-        TileDone = 0;
-        TileDone++;
-        EditorCoroutine.StartCoroutine(GenerateAll());
-        while (TileDone > 0)
+        for (int zz = itz - RangeSize; zz <= itz + RangeSize; zz++)
         {
-          // Debug.Log(TileDone);
-          this.Repaint();
-          yield return new WaitForSeconds(5f);
+          TileX = xx;
+          TileZ = zz;
+          TileDone = 0;
+          TileDone++;
+          Debug.Log("Doing " + TileX + "," + TileZ);
+          EditorCoroutine.StartCoroutine(GenerateAll());
+          while (TileDone > 0)
+          {
+            // Debug.Log(TileDone);
+            this.Repaint();
+            yield return new WaitForSeconds(1f);
+          }
+          Debug.Log("Done " + TileX + "," + TileZ);
         }
-        TileX++;
       }
 
-      TileX = itx;
-
-
+      if (bExport)
+      {
+        Debug.Log("Exporting AssetBundles");
+        ExportAssetBundle();
+      }
     }
-
 
     //Generate a mesh terrain, prefab, and AssetBundle
     IEnumerator GenerateAll()
     {
-     
       Done = 0;
       CreateFolders();
       GetContainers();
 
       DownloadBasemap();
+
+      Done = 0;
       DownloadHeightMap();
+      while (HeightmapDone > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+
+      /*
+      Debug.Log("Downloading Neighbours");
+      DownloadHeightmapNeighbours();
+      while ((NeighbourDone > 1 ) && (HeightmapDone > 1))
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+      */
+
+      Debug.Log("///Downloaded Neighbours");
+      CreateContiuousTiles();
+
+      Done = 0;
       DownloadNormalMap();
 
       while (Done > 0)
@@ -675,46 +952,64 @@ namespace _Massive
       }
 
       Done = 0;
+      GetGeoInfo();
+      while (Done > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+
+      Done = 0;
 
       FixMesh();
       while (Done > 0)
       {
         this.Repaint();
         yield return new WaitForSeconds(0.1f);
-      }      
+      }
 
+      Done = 0;
       GeneratePrefab();
-     
-      ExportAssetBundle();
-     
+      while (Done > 0)
+      {
+        this.Repaint();
+        yield return new WaitForSeconds(0.1f);
+      }
+
+      if (bExport)
+      {
+        // ExportAssetBundle();
+      }
+
       TileDone--;
+      Repaint();
     }
 
     void GeneratePrefab()
     {
       Debug.Log("Generating Prefab");
+
       string ShortName = TileX + "_" + TileZ;
 
-
-      UnityEngine.Object prefab = PrefabUtility.CreateEmptyPrefab(GetPath(ePATHSPEC.PREFABPATH));
+      UnityEngine.Object prefab = PrefabUtility.CreateEmptyPrefab(Paths.GetPath(ePATHSPEC.PREFABPATH));
       PrefabUtility.ReplacePrefab(TerrainContainer, prefab, ReplacePrefabOptions.ConnectToPrefab);
 
-      //string path = AssetDatabase.GetAssetPath(prefab);
-      //AssetImporter assetImporter = AssetImporter.GetAtPath(path);
-      //assetImporter.assetBundleName = ShortName + ".unity3d";
+      string path = AssetDatabase.GetAssetPath(prefab);
+      AssetImporter assetImporter = AssetImporter.GetAtPath(path);
+      assetImporter.assetBundleName = ZoomLevel + "/" + TileZ + "/" + ShortName + ".unity3d";
       Debug.Log("Generated Prefab");
+
+      CopyThumbnails();
+      Done--;
     }
 
-    void ExportAssetBundle()
+    void CopyThumbnails()
     {
-      Done++;
-      Debug.Log("Exporting AssetBundle " + TileX + "_" + TileZ);
       //string path = "Assets/_Massive/AssetBundles";     
       string path = ExportLocation + "\\" + ZoomLevel + "\\" + TileZ + "\\";
       Directory.CreateDirectory(path);
 
-
-      string srcimgpath = GetPath(ePATHSPEC.TERRAINPATH) + "/texture.png";
+      string srcimgpath = Paths.GetPath(ePATHSPEC.TERRAINPATH) + "/texture.png";
       string targetimgpath = path + TileX + "_" + TileZ + ".png";
 
       srcimgpath = srcimgpath.Replace("/", "\\");
@@ -723,17 +1018,24 @@ namespace _Massive
         File.Delete(targetimgpath);
       }
       File.Copy(srcimgpath, targetimgpath);
+      Debug.Log("Exporting Thumbnail " + targetimgpath);
+    }
 
-      UnityEngine.Object prefab = AssetDatabase.LoadAssetAtPath<GameObject>(GetPath(ePATHSPEC.PREFABPATH));
-      string assetpath = AssetDatabase.GetAssetPath(prefab);
-      AssetImporter assetImporter = AssetImporter.GetAtPath(assetpath);
-      assetImporter.assetBundleName = TileX + "_" + TileZ + ".unity3d";
+    void ExportAssetBundle()
+    {
+      Done++;
+
+      string path = ExportLocation;
+      Directory.CreateDirectory(path);
+
+      //UnityEngine.Object prefab = AssetDatabase.LoadAssetAtPath<GameObject>(GetPath(ePATHSPEC.PREFABPATH));
+      //string assetpath = AssetDatabase.GetAssetPath(prefab);
+      //AssetImporter assetImporter = AssetImporter.GetAtPath(assetpath);
+      //assetImporter.assetBundleName = TileX + "_" + TileZ + ".unity3d";
 
       BuildPipeline.BuildAssetBundles(path, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows64);
 
-      assetImporter.assetBundleName = "";
-
-
+      //assetImporter.assetBundleName = "";
       //UnityEngine.Object prefab = AssetDatabase.LoadAssetAtPath<GameObject>(GetPath(ePATHSPEC.PREFABPATH));
       //BuildPipeline.BuildAssetBundle(prefab, null, path, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows64);
 
@@ -747,10 +1049,11 @@ namespace _Massive
       Done--;
     }
 
+    //TODO: Skip OBJ step and generate directly to .asset
     void GenerateMeshTerrain()
     {
       Done++;
-      Debug.Log("Generating Mesh Terrain");
+      Debug.Log("Generating Mesh Terrain for " + TileX + "," + TileZ);
       AssetDatabase.Refresh();
       GetContainers();
       CreateFolders();
@@ -760,62 +1063,74 @@ namespace _Massive
       //_DETAIL_MULX2
       m.color = Color.white;
       m.SetFloat("_SpecularHighlights", 0f);
-      m.SetFloat("_SpecularHighlights", 0f);
+      m.SetFloat("_GlossyReflections", 0f);
 
-      Texture2D t2 = (Texture2D)AssetDatabase.LoadAssetAtPath<Texture2D>(GetPath(ePATHSPEC.TEXTUREPATH));
+      Texture2D t2 = (Texture2D)AssetDatabase.LoadAssetAtPath<Texture2D>(Paths.GetPath(ePATHSPEC.TEXTUREPATH));
       m.mainTexture = t2;
-      Texture2D n1 = (Texture2D)AssetDatabase.LoadAssetAtPath<Texture2D>(GetPath(ePATHSPEC.NORMALMAPPATH));
+      Texture2D n1 = (Texture2D)AssetDatabase.LoadAssetAtPath<Texture2D>(Paths.GetPath(ePATHSPEC.NORMALMAPPATH));
       m.SetTexture("_BumpMap", n1);
       m.SetFloat("_Glossiness", 0);
 
-      AssetDatabase.CreateAsset(m, GetPath(ePATHSPEC.MATERIALPATH));
+      AssetDatabase.CreateAsset(m, Paths.GetPath(ePATHSPEC.MATERIALPATH));
       AssetDatabase.Refresh();
-
-      Debug.Log("Generate Mesh Terrain");
 
       //TerrainSettings tset = TerrainProto.GetComponent<TerrainSettings>();
 
-      string hpath = GetPath(ePATHSPEC.HEIGHTMAPATH);
+      string hpath = Paths.GetPath(ePATHSPEC.HEIGHTMAPCONTPATH);
+      Debug.Log("Instantiating HeightmapCont:" + TileX + "," + TileZ);
       HeightMap = Instantiate(AssetDatabase.LoadAssetAtPath<Texture2D>(hpath));
 
-      string outpath = GetPath(ePATHSPEC.MESHPATH);
-      DRect TileSize = MapFuncs.TileBoundsInMeters(new DVector3(TileX, 0, TileZ), ZoomLevel);
+      string outpath = Paths.GetPath(ePATHSPEC.MESHOBJPATH);
+      DRect TileSize = MapTools.TileBoundsInMeters(new DVector3(TileX, 0, TileZ), ZoomLevel);
       //ExportOBJ.ExportFromHeight(HeightMap, outpath, TileSize);      
       //ExportOBJ.ExportMapZenHeight(HeightMap, outpath, TileSize.Size);      
-      DVector3 TileLatLon = MapFuncs.TileToWorldPos(new DVector3(TileX, 0, TileZ), ZoomLevel);
+      DVector3 TileLatLon = MapTools.TileToWorldPos(new DVector3(TileX, 0, TileZ), ZoomLevel);
 
       TerrainContainer = new GameObject();
       MassiveTile tile = TerrainContainer.AddComponent<MassiveTile>();
       ExportOBJ.ExportMapZenHeight(tile, HeightMap, outpath, TileSize.Size, TileLatLon);
 
       AssetDatabase.Refresh();
-      AssetDatabase.ImportAsset(GetPath(ePATHSPEC.MESHPATH));
-      GameObject asset = (GameObject)AssetDatabase.LoadMainAssetAtPath(GetPath(ePATHSPEC.MESHPATH));
+      AssetDatabase.ImportAsset(Paths.GetPath(ePATHSPEC.MESHOBJPATH));
+      GameObject asset = (GameObject)AssetDatabase.LoadMainAssetAtPath(Paths.GetPath(ePATHSPEC.MESHOBJPATH));
       GameObject obj = Instantiate(asset);
-      obj.transform.Find("default").transform.parent = TerrainContainer.transform;
+
+      //Swap OBJ for .Asset to preserve modifications
+      Transform tr = obj.transform.Find("default");
+      MeshFilter mf = tr.GetComponent<MeshFilter>();
+      Mesh nm = Instantiate(mf.sharedMesh);
+      AssetDatabase.CreateAsset(nm, Paths.GetPath(ePATHSPEC.MESHASSETPATH));
+      AssetDatabase.ImportAsset(Paths.GetPath(ePATHSPEC.MESHASSETPATH));
+      AssetDatabase.Refresh();
+      Mesh masset = (Mesh)AssetDatabase.LoadMainAssetAtPath(Paths.GetPath(ePATHSPEC.MESHASSETPATH));
+
+      GameObject ma = new GameObject("terrain");
+      MeshFilter tmf = ma.AddComponent<MeshFilter>();
+      tmf.mesh = masset;
+      ma.AddComponent<MeshRenderer>();
+      ma.transform.parent = TerrainContainer.transform;
+
       GameObject.DestroyImmediate(obj);
+      AssetDatabase.Refresh();
 
       //set position
-      Vector3 tm = MapFuncs.TileToMeters(TileX, TileZ, ZoomLevel).ToVector3();
-      Vector3 sp = MapFuncs.TileToMeters((int)StartPostion.x, (int)StartPostion.z, ZoomLevel).ToVector3();
+      Vector3 tm = MapTools.TileToMeters(TileX, TileZ, ZoomLevel).ToVector3();
+      Vector3 sp = MapTools.TileToMeters((int)StartPostion.x, (int)StartPostion.z, ZoomLevel).ToVector3();
       DVector3 dif = new DVector3(TileX, 0, TileZ) - StartPostion;
-      TerrainContainer.transform.position = tm - sp;
+      TerrainContainer.transform.position = new Vector3(tm.x - sp.x, 0, sp.z - tm.z);
 
       TerrainContainer.name = TileX + "_" + "0" + "_" + TileZ + "_" + ZoomLevel;
-      TerrainContainer.transform.Find("default").name = "terrain";
-
       GameObject TerGo = TerrainContainer.transform.Find("terrain").gameObject;
       MeshRenderer mr = TerGo.GetComponent<MeshRenderer>();
       TerGo.AddComponent<MeshCollider>();
       TerGo.layer = LayerMask.NameToLayer("Terrain");
-
 
       tile.ZoomLevel = ZoomLevel;
       tile.SetTileIndex(new Vector3(TileX, 0, TileZ), ZoomLevel);
 
       Material[] temp = new Material[1];
       //temp[0] = Instantiate((Material)AssetDatabase.LoadAssetAtPath<Material>(path + ".mat"));            
-      temp[0] = (Material)AssetDatabase.LoadAssetAtPath<Material>(GetPath(ePATHSPEC.MATERIALPATH));
+      temp[0] = (Material)AssetDatabase.LoadAssetAtPath<Material>(Paths.GetPath(ePATHSPEC.MATERIALPATH));
       temp[0].name = "mat_" + TileX + "_" + TileZ;
       //TextureTools.Bilinear(t2, 512, 512);
       temp[0].mainTexture = t2;
@@ -834,6 +1149,7 @@ namespace _Massive
 
       AssetDatabase.Refresh();
       AssetDatabase.ImportAsset(path);
+
       TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
       importer.textureType = TextureImporterType.Default;
       importer.wrapMode = TextureWrapMode.Repeat;
@@ -844,19 +1160,6 @@ namespace _Massive
       AssetDatabase.Refresh();
       Texture2D tex2 = (Texture2D)AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
       return tex2;
-    }
-
-
-    // Use this for initialization
-    void Start()
-    {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
     }
   }
 }
